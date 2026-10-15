@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
@@ -16,6 +17,8 @@ from .schemas import (
     RestockRequest,
 )
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title=settings.app_name, version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
@@ -27,7 +30,10 @@ Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 @app.on_event("startup")
 def startup():
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as exc:
+        logger.warning("Could not auto-create tables on startup (normal during migrations or tests): %s", exc)
 
 @app.get("/")
 def root():
