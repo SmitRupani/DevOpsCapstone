@@ -12,3 +12,9 @@ output "vpc_id" {
   description = "VPC ID where cluster is provisioned"
   value       = module.vpc.vpc_id
 }
+
+output "provisioned_facilities" {
+  description = "Regional warehouse facilities discovered by LogiTrack application"
+  value       = var.warehouse_facilities
+}
+
