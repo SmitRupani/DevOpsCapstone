@@ -3,7 +3,8 @@ kind: ConfigMap
 metadata:
   name: {{ include "logitrack.fullname" . }}-facilities
   labels:
-    {{- include "logitrack.labels" . | nindent 4 }}
+    app: logitrack
+
 data:
   facilities.json: |
     [
