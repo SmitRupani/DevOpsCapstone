@@ -1,4 +1,4 @@
-# Session 21 — DevOps Final Capstone: LogiTrack (Python)
+# DevOps Final Capstone: LogiTrack (Python)
 
 ## 1. What We Are Building
 
