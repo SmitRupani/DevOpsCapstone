@@ -18,6 +18,8 @@ function App() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showIaCModal, setShowIaCModal] = useState(false);
+  const [facilities, setFacilities] = useState([]);
   const [restockTarget, setRestockTarget] = useState(null);
   const [restockAmount, setRestockAmount] = useState(10);
   const [loading, setLoading] = useState(true);
@@ -32,9 +34,10 @@ function App() {
   const loadData = async () => {
     try {
       setError('');
-      const [invRes, statsRes] = await Promise.all([
+      const [invRes, statsRes, facRes] = await Promise.all([
         fetch(`${API}/inventory`),
         fetch(`${API}/inventory/stats`),
+        fetch(`${API}/inventory/facilities`),
       ]);
 
       if (!invRes.ok || !statsRes.ok) {
@@ -43,6 +46,10 @@ function App() {
 
       const invData = await invRes.json();
       const statsData = await statsRes.json();
+      const facData = facRes.ok ? await facRes.json() : [];
+      setItems(invData);
+      setStats(statsData);
+      setFacilities(facData);
       setItems(invData);
       setStats(statsData);
 
@@ -149,6 +156,37 @@ function App() {
       if (!res.ok) throw new Error('Failed to delete item');
 
       addActivity('🗑', `Removed item ${item.sku} from inventory`);
+      loadData();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleProvisionFacilityViaIaC = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const payload = {
+      id: fd.get('id') || `wh-${Date.now()}`,
+      name: fd.get('name'),
+      region: fd.get('region'),
+      location: fd.get('location'),
+      aisles: fd.get('aisles'),
+      storage_utilization: 35,
+      dispatch_sla: fd.get('dispatch_sla') || '99.7%',
+      provisioner: 'Terraform AWS EKS Module v20.37.1',
+    };
+
+    try {
+      const res = await fetch(`${API}/inventory/facilities/provision-demo`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error('Failed to trigger Terraform provisioning');
+
+      addActivity('⚡', `Terraform applied: Provisioned ${payload.name} (${payload.region})`);
+      setShowIaCModal(false);
       loadData();
     } catch (err) {
       alert(err.message);
@@ -589,98 +627,55 @@ function App() {
                 <p className="eyebrow">PHYSICAL INFRASTRUCTURE & FULFILLMENT</p>
                 <h1>Warehouse Distribution Centers 🏬</h1>
                 <p className="muted">
-                  Multi-facility regional distribution nodes hosting LogiTrack inventory.
+                  Multi-facility regional distribution nodes discovered from Terraform IaC registry.
                 </p>
               </div>
-              <button className="primary" onClick={() => alert('New warehouse provisioning is handled via Terraform!')}>
-                ＋ Add Facility
+              <button className="primary" onClick={() => setShowIaCModal(true)}>
+                ⚡ Provision Facility via Terraform
               </button>
             </header>
 
+            <div className="alert" style={{ background: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.3)', color: '#a7f3d0' }}>
+              <span style={{ fontSize: '18px' }}>☁</span>
+              <div>
+                <strong>DevOps Architecture — Dynamic Infrastructure Service Discovery:</strong><br />
+                These distribution facilities are provisioned via Terraform modules (VPC, Subnets, EKS Worker Nodes). The application backend discovers active facilities directly from the cluster configuration registry.
+              </div>
+            </div>
+
             <section className="warehouse-grid">
-              <div className="wh-card">
-                <div className="wh-header">
-                  <div>
-                    <h3>Central Hub — Mumbai A1</h3>
-                    <span className="muted">Primary AWS ap-south-1 Region</span>
+              {facilities.map((fac) => (
+                <div className="wh-card" key={fac.id}>
+                  <div className="wh-header">
+                    <div>
+                      <h3>{fac.name}</h3>
+                      <span className="muted">{fac.region}</span>
+                    </div>
+                    <span className="status-pill in_stock">{fac.status}</span>
                   </div>
-                  <span className="status-pill in_stock">Operational</span>
-                </div>
-                <div className="wh-meta">
-                  <span>📍 Western Express, Mumbai</span>
-                  <span>Aisles 1–12</span>
-                </div>
-                <div className="wh-stats">
-                  <div>
-                    <small>Storage Util</small>
-                    <strong>78%</strong>
+                  <div className="wh-meta">
+                    <span>📍 {fac.location}</span>
+                    <span>{fac.aisles}</span>
                   </div>
-                  <div>
-                    <small>Active SKUs</small>
-                    <strong>{items.filter(i => i.warehouse_location.includes('Aisle 1') || i.warehouse_location.includes('Aisle 4')).length || 12}</strong>
+                  <div className="wh-stats">
+                    <div>
+                      <small>Storage Util</small>
+                      <strong>{fac.storage_utilization}%</strong>
+                    </div>
+                    <div>
+                      <small>Active SKUs</small>
+                      <strong>{fac.active_skus}</strong>
+                    </div>
+                    <div>
+                      <small>Dispatch SLA</small>
+                      <strong>{fac.dispatch_sla}</strong>
+                    </div>
                   </div>
-                  <div>
-                    <small>Dispatch SLA</small>
-                    <strong>99.8%</strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="wh-card">
-                <div className="wh-header">
-                  <div>
-                    <h3>Fulfillment Node — Bangalore B2</h3>
-                    <span className="muted">Secondary Hub (Tech & Electronics)</span>
-                  </div>
-                  <span className="status-pill in_stock">Operational</span>
-                </div>
-                <div className="wh-meta">
-                  <span>📍 Electronic City, Bangalore</span>
-                  <span>Aisles 13–24</span>
-                </div>
-                <div className="wh-stats">
-                  <div>
-                    <small>Storage Util</small>
-                    <strong>62%</strong>
-                  </div>
-                  <div>
-                    <small>Active SKUs</small>
-                    <strong>8</strong>
-                  </div>
-                  <div>
-                    <small>Dispatch SLA</small>
-                    <strong>99.4%</strong>
+                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px' }}>
+                    ⚙ {fac.provisioner}
                   </div>
                 </div>
-              </div>
-
-              <div className="wh-card">
-                <div className="wh-header">
-                  <div>
-                    <h3>Overflow Facility — Pune C1</h3>
-                    <span className="muted">Hardware & Heavy Equipment</span>
-                  </div>
-                  <span className="status-pill in_stock">Operational</span>
-                </div>
-                <div className="wh-meta">
-                  <span>📍 Chakan MIDC, Pune</span>
-                  <span>Zones A–D</span>
-                </div>
-                <div className="wh-stats">
-                  <div>
-                    <small>Storage Util</small>
-                    <strong>45%</strong>
-                  </div>
-                  <div>
-                    <small>Active SKUs</small>
-                    <strong>4</strong>
-                  </div>
-                  <div>
-                    <small>Dispatch SLA</small>
-                    <strong>98.9%</strong>
-                  </div>
-                </div>
-              </div>
+              ))}
             </section>
           </>
         )}
@@ -877,6 +872,104 @@ function App() {
 
               <button className="primary full" type="submit">
                 Confirm Restock
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Modal: Terraform IaC Provisioning */}
+        {showIaCModal && (
+          <div className="modal-backdrop">
+            <form className="modal" onSubmit={handleProvisionFacilityViaIaC} style={{ maxWidth: '540px' }}>
+              <div className="modal-head">
+                <div>
+                  <p className="eyebrow">INFRASTRUCTURE AS CODE (TERRAFORM)</p>
+                  <h2>Provision Regional Facility Node</h2>
+                </div>
+                <button
+                  type="button"
+                  className="close"
+                  onClick={() => setShowIaCModal(false)}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Code snippet showing the Terraform IaC trigger */}
+              <div style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid var(--border)', borderRadius: '6px', padding: '10px 14px', fontFamily: 'monospace', fontSize: '11px', color: '#93c5fd' }}>
+                <span style={{ color: '#6ee7b7' }}># terraform/terraform.tfvars — Trigger Condition</span><br />
+                + "delhi-ncr-hub" = &#123;<br />
+                &nbsp;&nbsp;aws_region = "ap-south-2",<br />
+                &nbsp;&nbsp;vpc_cidr   = "10.30.0.0/16",<br />
+                &nbsp;&nbsp;role       = "Northern Express Logistics Node"<br />
+                &#125;
+              </div>
+
+              <div className="form-row">
+                <label>
+                  Facility Resource ID *
+                  <input
+                    name="id"
+                    required
+                    placeholder="e.g. delhi-ncr-hub"
+                    defaultValue="delhi-ncr-hub"
+                  />
+                </label>
+                <label>
+                  Facility Display Name *
+                  <input
+                    name="name"
+                    required
+                    placeholder="e.g. Northern Hub — Delhi NCR D1"
+                    defaultValue="Northern Hub — Delhi NCR D1"
+                  />
+                </label>
+              </div>
+
+              <div className="form-row">
+                <label>
+                  Target Cloud Region *
+                  <input
+                    name="region"
+                    required
+                    placeholder="e.g. ap-south-2 (Northern AWS Region)"
+                    defaultValue="ap-south-2 (Northern AWS Region)"
+                  />
+                </label>
+                <label>
+                  Physical Location *
+                  <input
+                    name="location"
+                    required
+                    placeholder="e.g. NH-48 Logistics Corridor, Gurgaon"
+                    defaultValue="NH-48 Logistics Corridor, Gurgaon"
+                  />
+                </label>
+              </div>
+
+              <div className="form-row">
+                <label>
+                  Storage Aisles / Capacity *
+                  <input
+                    name="aisles"
+                    required
+                    placeholder="e.g. Aisles 25–40"
+                    defaultValue="Aisles 25–40"
+                  />
+                </label>
+                <label>
+                  Target Dispatch SLA *
+                  <input
+                    name="dispatch_sla"
+                    required
+                    placeholder="e.g. 99.7%"
+                    defaultValue="99.7%"
+                  />
+                </label>
+              </div>
+
+              <button className="primary full" type="submit">
+                ⚡ Run Terraform Plan & Apply (Provision Node)
               </button>
             </form>
           </div>
