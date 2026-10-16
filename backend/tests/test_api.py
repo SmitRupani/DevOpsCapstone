@@ -172,3 +172,33 @@ def test_update_and_delete_item(client):
     # Verify 404
     get_res = client.get(f"/api/inventory/{item_id}")
     assert get_res.status_code == 404
+
+def test_facilities_discovery_and_provision_demo(client):
+    # 1. Test listing discovered facilities
+    res = client.get("/api/inventory/facilities")
+    assert res.status_code == 200
+    facilities = res.json()
+    assert len(facilities) >= 3
+    assert any("Mumbai" in f["name"] for f in facilities)
+    assert any(f["status"] == "Operational" for f in facilities)
+
+    # 2. Test provisioning a new facility via IaC demo
+    demo_payload = {
+        "id": "delhi-ncr-hub",
+        "name": "Northern Hub — Delhi NCR D1",
+        "region": "ap-south-2 (Northern AWS Region)",
+        "location": "NH-48 Logistics Corridor, Gurgaon",
+        "aisles": "Aisles 25–40",
+        "storage_utilization": 35,
+        "dispatch_sla": "99.7%",
+        "provisioner": "Terraform AWS EKS Module v20.37.1",
+    }
+    prov_res = client.post("/api/inventory/facilities/provision-demo", json=demo_payload)
+    assert prov_res.status_code == 201
+    assert prov_res.json()["status"] == "SUCCESS"
+
+    # 3. Verify the new facility appears dynamically in facilities list
+    updated_res = client.get("/api/inventory/facilities")
+    updated_facilities = updated_res.json()
+    assert any(f["id"] == "delhi-ncr-hub" for f in updated_facilities)
+
