@@ -204,7 +204,9 @@ To meet the observability requirements, I set up end-to-end metrics scraping and
 
 ## M10 — Final Presentation + Documentation
 
-- **`README.md`**: Contains my full project architecture diagram, local setup instructions, API reference, Docker runbook, Kubernetes guide, and troubleshooting procedures.
+- **`README.md`**: Complete technical documentation containing architecture diagrams, local setup runbook, API reference, Kubernetes guide, Section 12 Known Issues & Limitations, and Section 13 Presentation & Video Walkthrough summary.
+- **Presentation Deck (`demo/presentation.pptx`)**: 12-slide widescreen PowerPoint slide deck ([`demo/presentation.pptx`](demo/presentation.pptx)) covering project architecture, CI/CD, GitOps, and observability.
+- **Video Walkthrough (`demo/`)**: Complete demonstration of the end-to-end cloud-native pipeline (slide presentation, GitHub Actions run, codebase tour, Terraform, ArgoCD, Kubernetes, and Prometheus/Grafana) located in the `demo/` folder.
 
 ---
 

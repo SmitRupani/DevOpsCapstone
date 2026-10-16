@@ -325,3 +325,25 @@ Two diagnostic exercises are provided in `troubleshooting/`:
 2. **Broken Service (`troubleshooting/broken-service.yaml`)**:
    - Simulates zero-endpoint connectivity by using an invalid label selector.
    - Diagnosis: `kubectl get endpoints -n logitrack` shows `<none>` $\rightarrow$ match service selector with pod labels.
+
+---
+
+## 12. Known Issues and Limitations
+
+1. **Local Ingress DNS Resolution**:
+   - When running on Minikube in Windows with Docker desktop driver, `logitrack.local` requires either mapping `127.0.0.1 logitrack.local` in `C:\Windows\System32\drivers\etc\hosts` or using `kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8085:80` for host access.
+2. **Storage Provisioning in Local Minikube vs. Cloud EKS**:
+   - Local deployments use standard Minikube hostpath storage provisioner for PostgreSQL volume claims. In AWS EKS production environments, the AWS EBS CSI driver (`gp3` storage class) should be enabled with IAM OIDC role integration.
+3. **AWS Free-Tier & Cost Prevention**:
+   - EKS control plane and NAT Gateways incur hourly AWS billing. Always run `terraform destroy` when not actively conducting live evaluations to prevent runaway cloud expenses.
+4. **GitOps In-Cluster Sync Frequency**:
+   - ArgoCD syncs remote Helm charts every 3 minutes by default. Manual sync via `argocd app sync logitrack` or webhook configuration is recommended during live demo presentations.
+
+---
+
+## 13. Final Presentation & Video Walkthrough
+
+The project includes a comprehensive presentation slide deck and video walkthrough located in the `demo/` folder:
+
+- **Slide Deck (`demo/presentation.pptx`)**: A 12-slide widescreen presentation covering the Smart Warehouse business domain, application architecture, shift-left testing, containerization, CI/CD pipeline, DevSecOps security gates, Terraform IaC, Kubernetes orchestration, GitOps, and observability.
+- **Walkthrough Video (`demo/walkthrough.mp4`)**: A comprehensive 5–7 minute video walkthrough demonstrating the slide deck, CI/CD pipeline, codebase architecture, Terraform infrastructure, ArgoCD GitOps sync, Kubernetes orchestration, and Prometheus/Grafana observability.
