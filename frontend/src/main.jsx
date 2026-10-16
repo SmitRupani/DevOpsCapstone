@@ -22,6 +22,8 @@ function App() {
   const [facilities, setFacilities] = useState([]);
   const [restockTarget, setRestockTarget] = useState(null);
   const [restockAmount, setRestockAmount] = useState(10);
+  const [dispatchTarget, setDispatchTarget] = useState(null);
+  const [dispatchAmount, setDispatchAmount] = useState(5);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [metricsRaw, setMetricsRaw] = useState('');
@@ -142,6 +144,30 @@ function App() {
 
       addActivity('📦', `Restocked +${restockAmount} units of ${restockTarget.sku}`);
       setRestockTarget(null);
+      loadData();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDispatch = async (e) => {
+    e.preventDefault();
+    if (!dispatchTarget) return;
+
+    try {
+      const res = await fetch(`${API}/inventory/${dispatchTarget.id}/dispatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: parseInt(dispatchAmount, 10) }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || 'Failed to dispatch item');
+      }
+
+      addActivity('📤', `Dispatched ${dispatchAmount} units of ${dispatchTarget.sku}`);
+      setDispatchTarget(null);
       loadData();
     } catch (err) {
       alert(err.message);
@@ -434,6 +460,18 @@ function App() {
                             </td>
                             <td>
                               <div className="actions-cell">
+                                <button
+                                  className="icon-btn"
+                                  title="Dispatch Outbound Units"
+                                  onClick={() => {
+                                    setDispatchTarget(item);
+                                    setDispatchAmount(Math.min(item.quantity, 5) || 1);
+                                  }}
+                                  disabled={item.quantity === 0}
+                                  style={{ opacity: item.quantity === 0 ? 0.4 : 1 }}
+                                >
+                                  📤 Dispatch
+                                </button>
                                 <button
                                   className="icon-btn"
                                   title="Restock Item"
@@ -872,6 +910,92 @@ function App() {
 
               <button className="primary full" type="submit">
                 Confirm Restock
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Modal: Quick Dispatch */}
+        {dispatchTarget && (
+          <div className="modal-backdrop">
+            <form className="modal" onSubmit={handleDispatch}>
+              <div className="modal-head">
+                <div>
+                  <p className="eyebrow">OUTBOUND FULFILLMENT</p>
+                  <h2>Dispatch SKU: {dispatchTarget.sku}</h2>
+                </div>
+                <button
+                  type="button"
+                  className="close"
+                  onClick={() => setDispatchTarget(null)}
+                >
+                  ×
+                </button>
+              </div>
+
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                Product: <b>{dispatchTarget.name}</b> <br />
+                Available In Stock:{' '}
+                <b
+                  style={{
+                    color:
+                      dispatchTarget.quantity <= dispatchTarget.min_threshold
+                        ? 'var(--warning)'
+                        : 'var(--success)',
+                  }}
+                >
+                  {dispatchTarget.quantity} units
+                </b>{' '}
+                (Min Alert: {dispatchTarget.min_threshold})
+              </p>
+
+              <label>
+                Units to Dispatch *
+                <input
+                  type="number"
+                  min="1"
+                  max={dispatchTarget.quantity}
+                  value={dispatchAmount}
+                  onChange={(e) => setDispatchAmount(e.target.value)}
+                  required
+                />
+              </label>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[1, 5, 10]
+                  .filter((amt) => amt <= dispatchTarget.quantity)
+                  .map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      className="secondary"
+                      style={{ flex: 1, padding: '8px' }}
+                      onClick={() => setDispatchAmount(amt)}
+                    >
+                      -{amt}
+                    </button>
+                  ))}
+                {dispatchTarget.quantity > 0 && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    style={{ flex: 1, padding: '8px' }}
+                    onClick={() => setDispatchAmount(dispatchTarget.quantity)}
+                  >
+                    All ({dispatchTarget.quantity})
+                  </button>
+                )}
+              </div>
+
+              <button
+                className="primary full"
+                type="submit"
+                disabled={
+                  dispatchTarget.quantity === 0 ||
+                  dispatchAmount > dispatchTarget.quantity
+                }
+              >
+                Confirm Dispatch
               </button>
             </form>
           </div>
