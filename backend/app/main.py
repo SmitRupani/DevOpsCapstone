@@ -10,6 +10,7 @@ from .config import settings
 from .db import Base, engine, get_db
 from .models import InventoryItem
 from .schemas import (
+    DispatchRequest,
     InventoryStatsOut,
     ItemCreate,
     ItemOut,
@@ -178,6 +179,26 @@ def restock_item(item_id: int, payload: RestockRequest, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Item not found")
 
     item.quantity += payload.amount
+    item.status = item.calculate_status()
+    item.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(item)
+    return item
+
+@app.post("/api/inventory/{item_id}/dispatch", response_model=ItemOut)
+def dispatch_item(item_id: int, payload: DispatchRequest, db: Session = Depends(get_db)):
+    """Dispatches/deducts stock for outbound order fulfillment. Validates against negative stock."""
+    item = db.get(InventoryItem, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    if item.quantity < payload.amount:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient inventory: requested {payload.amount} units, but only {item.quantity} available in stock",
+        )
+
+    item.quantity -= payload.amount
     item.status = item.calculate_status()
     item.updated_at = datetime.now(timezone.utc)
     db.commit()

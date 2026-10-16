@@ -66,6 +66,40 @@ def test_restock_item(client):
     assert updated["quantity"] == 15
     assert updated["status"] == "IN_STOCK"
 
+def test_dispatch_item(client):
+    create_res = client.post(
+        "/api/inventory",
+        json={
+            "sku": "SKU-DISP-001",
+            "name": "Barcode Scanner Battery",
+            "category": "Electronics",
+            "quantity": 20,
+            "min_threshold": 10,
+            "unit_price": 25.00,
+            "warehouse_location": "Aisle 2",
+        },
+    )
+    assert create_res.status_code == 201
+    item_id = create_res.json()["id"]
+    assert create_res.json()["status"] == "IN_STOCK"
+
+    # 1. Dispatch 15 units -> drops to 5 (<= min_threshold 10) -> LOW_STOCK
+    d1_res = client.post(f"/api/inventory/{item_id}/dispatch", json={"amount": 15})
+    assert d1_res.status_code == 200
+    assert d1_res.json()["quantity"] == 5
+    assert d1_res.json()["status"] == "LOW_STOCK"
+
+    # 2. Attempt to dispatch 10 units (more than 5 in stock) -> 400 Bad Request
+    d_fail = client.post(f"/api/inventory/{item_id}/dispatch", json={"amount": 10})
+    assert d_fail.status_code == 400
+    assert "Insufficient inventory" in d_fail.json()["detail"]
+
+    # 3. Dispatch remaining 5 units -> drops to 0 -> OUT_OF_STOCK
+    d2_res = client.post(f"/api/inventory/{item_id}/dispatch", json={"amount": 5})
+    assert d2_res.status_code == 200
+    assert d2_res.json()["quantity"] == 0
+    assert d2_res.json()["status"] == "OUT_OF_STOCK"
+
 def test_get_and_filter_inventory(client):
     client.post(
         "/api/inventory",

@@ -25,6 +25,11 @@ class ItemUpdate(BaseModel):
 class RestockRequest(BaseModel):
     amount: int = Field(gt=0, description="Quantity to add to current inventory stock")
 
+class DispatchRequest(BaseModel):
+    amount: int = Field(gt=0, description="Quantity to dispatch/deduct from current inventory stock")
+    destination: str | None = Field(default=None, description="Optional destination or order reference")
+
+
 class ItemOut(BaseModel):
     id: int
     sku: str
